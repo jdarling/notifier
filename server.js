@@ -88,7 +88,7 @@ var emailHandler = function(request, reply){
     if(status){
       status.subject = msg.subject;
       status.html = msg.html;
-      status.text = body.text;
+      status.text = msg.text;
       status.room = msg.room_id||config.hipchat.room_id;
       status.color = msg.color||config.hipchat.color;
       status.to = msg.to||config.email.to;
