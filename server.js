@@ -55,6 +55,9 @@ var hipchatHandler = function(request, reply){
   return hc.send(msg, function(err, status){
       if(status){
         status.response = msg.message||msg;
+        status.room = msg.room_id||config.hipchat.room_id;
+        status.color = msg.color||config.hipchat.color;
+        status.from = msg.from||msg.sender||config.hipchat.from||config.hipchat.sender;
       }
       return reply(err||status);
     });
