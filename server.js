@@ -86,9 +86,9 @@ var emailHandler = function(request, reply){
   }
   return mailer.send(msg, function(err, status){
     if(status){
-      //status.response = msg||msg;
       status.subject = msg.subject;
-      status.body = msg.body;
+      status.html = msg.html;
+      status.text = body.text;
       status.room = msg.room_id||config.hipchat.room_id;
       status.color = msg.color||config.hipchat.color;
       status.to = msg.to||config.email.to;
@@ -101,7 +101,7 @@ var emailHandler = function(request, reply){
 var server = new Hapi.Server();
 server.connection({ port: config.web.port });
 
-server.start(function () {
+server.start(function(){
     console.log('Server running at:', server.info.uri);
   });
 
