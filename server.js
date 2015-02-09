@@ -5,6 +5,7 @@ var hc = new HipChat(config.hipchat);
 var mailer = new Mailer(config.email);
 var Handlebars = require('handlebars');
 var utils = require('./lib/utils');
+var async = require('async');
 
 Handlebars.registerHelper('inspect', function(obj, url) {
   return new Handlebars.SafeString(JSON.stringify(obj));
@@ -33,15 +34,10 @@ var events = (function(){
   return events;
 })();
 
-var hipchatHandler = function(request, reply){
-  var payload = request.payload;
-  var msg = payload;
-  var template = (events[(request.payload.event||'default').toLowerCase()]||events.default).hipchat;
-  if(!template){
-    return reply('No hipchat message specified for event "'+(request.payload.event||'default')+'"');
-  }
-  var args = request.payload.data||request.payload;
-  args.tail = args.tail || tails[~~(Math.random()*tails.length)];
+var sendHipchat = function(options, callback){
+  var template = options.template;
+  var args = options.args;
+
   if(typeof(template)==='object'){
     msg = utils.extend(true, {}, template);
     Object.keys(msg).forEach(function(key){
@@ -60,19 +56,14 @@ var hipchatHandler = function(request, reply){
         status.color = msg.color||config.hipchat.color;
         status.from = msg.from||msg.sender||config.hipchat.from||config.email.sender;
       }
-      return reply(err||status);
+      return callback(err, status);
     });
 };
 
-var emailHandler = function(request, reply){
-  var payload = request.payload;
-  var msg = payload;
-  var template = (events[(request.payload.event||'default').toLowerCase()]||events.default).email;
-  if(!template){
-    return reply('No email specified for event "'+(request.payload.event||'default')+'"');
-  }
-  var args = request.payload.data||request.payload;
-  args.tail = args.tail || tails[~~(Math.random()*tails.length)];
+var sendEmail = function(options, callback){
+  var template = options.template;
+  var args = options.args;
+
   if(typeof(template)==='object'){
     msg = utils.extend(true, {}, template);
     Object.keys(msg).forEach(function(key){
@@ -94,7 +85,78 @@ var emailHandler = function(request, reply){
       status.to = msg.to||config.email.to;
       status.from = msg.from||config.email.from;
     }
+    return callback(err, status);
+  });
+};
+
+var hipchatHandler = function(request, reply){
+  var payload = request.payload;
+  var msg = payload;
+  var template = (events[(request.payload.event||'default').toLowerCase()]||events.default).hipchat;
+  if(!template){
+    return reply('No hipchat message specified for event "'+(request.payload.event||'default')+'"');
+  }
+  var args = request.payload.data||request.payload;
+  args.tail = args.tail || tails[~~(Math.random()*tails.length)];
+
+  sendHipchat({
+    template: template,
+    args: args
+  }, function(err, status){
     return reply(err||status);
+  });
+};
+
+var emailHandler = function(request, reply){
+  var payload = request.payload;
+  var msg = payload;
+  var template = (events[(request.payload.event||'default').toLowerCase()]||events.default).email;
+  if(!template){
+    return reply('No email specified for event "'+(request.payload.event||'default')+'"');
+  }
+  var args = request.payload.data||request.payload;
+  args.tail = args.tail || tails[~~(Math.random()*tails.length)];
+
+  sendEmail({
+    template: template,
+    args: args
+  }, function(err, status){
+    return reply(err||status);
+  });
+};
+
+var notificationHandler = function(request, reply){
+  var payload = request.payload;
+  var msg = payload;
+  var templates = (events[(request.payload.event||'default').toLowerCase()]||events.default);
+  var args = request.payload.data||request.payload;
+  args.tail = args.tail || tails[~~(Math.random()*tails.length)];
+
+  var tasks = {};
+  if(templates.email){
+    tasks.email = function(cb){
+      sendEmail({
+        template: templates.email,
+        args: args
+      }, function(err, status){
+        return cb(null, err||status);
+      });
+    };
+  }
+
+  if(templates.hipchat){
+    tasks.hipchat = function(cb){
+      sendHipchat({
+        template: templates.hipchat,
+        args: args
+      }, function(err, status){
+        return cb(null, err||status);
+      });
+    };
+  }
+
+  async.parallel(tasks, function(err, res){
+    return reply(err||res);
   });
 };
 
@@ -126,6 +188,6 @@ server.route([
     {
       method: 'POST',
       path: '/api/v1/notification',
-      handler: hipchatHandler
+      handler: notificationHandler
     },
   ]);
