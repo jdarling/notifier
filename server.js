@@ -37,6 +37,7 @@ var events = (function(){
 var sendHipchat = function(options, callback){
   var template = options.template;
   var args = options.args;
+  var msg;
 
   if(typeof(template)==='object'){
     msg = utils.extend(true, {}, template);
@@ -48,6 +49,10 @@ var sendHipchat = function(options, callback){
   }
   if(typeof(template)==='string'){
     msg = template(args);
+  }
+
+  if(!msg){
+    return callback({error: 'Template is not valid!'});
   }
   return hc.send(msg, function(err, status){
       if(status){
@@ -63,6 +68,7 @@ var sendHipchat = function(options, callback){
 var sendEmail = function(options, callback){
   var template = options.template;
   var args = options.args;
+  var msg;
 
   if(typeof(template)==='object'){
     msg = utils.extend(true, {}, template);
@@ -74,6 +80,10 @@ var sendEmail = function(options, callback){
   }
   if(typeof(template)==='string'){
     msg = template(args);
+  }
+
+  if(!msg){
+    return callback({error: 'Template is not valid!'});
   }
   return mailer.send(msg, function(err, status){
     if(status){
